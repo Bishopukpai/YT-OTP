@@ -24,7 +24,14 @@ signinRoute.post('/signin', (req, res) => {
 
                 //if the user exists compare the provided password
                 if(data.length){
-                    const hashedPassword = data[0].password
+
+                    if(!data[0].verified){
+                        res.json({
+                            status: "FAILED",
+                            message: "You are yet to verify your account! Please check your inbox or spam for verification code"
+                        })
+                    }else {
+                        const hashedPassword = data[0].password
                     bcrypt.compare(password, hashedPassword)
                         .then(result => {
                             if(result){
@@ -44,6 +51,8 @@ signinRoute.post('/signin', (req, res) => {
                                 message: "Password comparison failed!"
                             }) 
                         })
+                    }
+                    
                 }else {
                     res.json({
                         status: "FAILED",

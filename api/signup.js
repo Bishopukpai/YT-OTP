@@ -1,12 +1,40 @@
 //import express
 const express = require('express');
 
+//import nodemailer
+const nodemailer = require('nodemailer');
+
+//import dotenv 
+require('dotenv').config()
+
 //import the usermodel.js file
 const User = require('../models/Usermodels'); 
+
+//import OTPVerification model
+const OTPVerification = require('../models/OTPVerification');
 const bcrypt = require('bcrypt');
 
 //create the signup router
 const signupRoute = express.Router();
+
+//create the transporter variable
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: process.env.AUTH_EMAIL,
+        pass: process.env.AUTH_PASS
+    }
+})
+
+//verify that the transporter is working
+transporter.verify((error, success) => {
+    if(error){
+        console.log(error);
+    }else {
+        console.log("Transporter is working perfectly!");
+        console.log(success)
+    }
+})
 
 signupRoute.post('/signup', (req, res) => {
     //collect user data from the request body
@@ -66,14 +94,12 @@ signupRoute.post('/signup', (req, res) => {
                             email,
                             username,
                             password: hashedPassword,
-                            dateOfbirth
+                            dateOfbirth,
+                            verified: false
                         })
                         newUser.save()
                             .then(result => {
-                                res.json({
-                                    status: "SUCCESS",
-                                    message: "Account creation was successful!"
-                                })
+                                sendOTP(result, res)
                             }).catch(err => {
                                 res.json({
                                     status: "FAILED",
@@ -97,4 +123,45 @@ signupRoute.post('/signup', (req, res) => {
     }
 })
 
+//create a sendOTP function
+const sendOTP = async ({_id, email}, res) => {
+    try{
+        //generate the otp
+        const otp = `${Math.floor(1000 + Math.random() * 9000)}`
+
+        const mailOptions = {
+            from: process.env.AUTH_EMAIL,
+            to: email,
+            subject: "Please Verify your Email",
+            html: `<p>Use the code below to verify your account</p><b><p>${otp}</p></b>`
+        }
+        const saltRounds = 10;
+        hashedOTP = await bcrypt.hash(otp, saltRounds)
+
+        const newOTPVerificationRecord = new OTPVerification({
+            userId: _id,
+            otp: hashedOTP,
+            createdAt: Date.now(),
+            expiresAt: Date.now() + 3600000
+        })
+        await newOTPVerificationRecord.save()
+
+        await transporter.sendMail(mailOptions)
+
+        res.json({
+            status: "PENDING",
+            message: "Verification Email sent!",
+            data: {
+                userId: _id,
+                email
+            }
+        })
+    }catch(error){
+        res.json({
+            status: "FAILED",
+            message: error.message
+        })
+    }
+}
+ 
 module.exports = signupRoute

@@ -9,6 +9,8 @@ const SignupRoute = require('./api/signup');
 //import the signin route 
 const SigninRoute = require('./api/signinRoute');
 
+const VerifyOTPRoute = require('./api/VerifyOTP')
+
 //import the database.js file
 require('./config/database')
 
@@ -39,6 +41,8 @@ app.use('/user', SignupRoute)
 
 //use the signup route to create a login route for your server
 app.use('/user', SigninRoute)
+
+app.use('/user', VerifyOTPRoute)
 
 //run your application on the port you created 
 app.listen(port, ()=> {
